@@ -19,6 +19,7 @@ namespace HTTP {
 
 const std::string SSEConnection::SSE_CONTENT_TYPE = "text/event-stream";
 const std::string SSEConnection::SSE_EVENT_BOUNDARY = "\n\n";
+const std::string SSEConnection::SSE_LINE_BOUNDARY = "\n";
 
 
 SSEConnection::SSEConnection(SSERoute& _route):
@@ -87,58 +88,20 @@ void SSEConnection::handleRequest(ServerEventArgs& evt)
                 IndexedSSEFrame frame = _frameQueue.front();
                 _frameQueue.pop();
                 _mutex.unlock();
+//                std::cout << "Frame: " << frame.frame().event() << " : " << frame.frame().data() << std::endl;
 
-                responseStream << "data: " << ofGetTimestampString() << SSE_EVENT_BOUNDARY;
+                if (!frame.frame().event().empty()) responseStream << "event: " << frame.frame().event() << SSE_LINE_BOUNDARY;
+
+                responseStream << "data: " << frame.frame().data() << SSE_EVENT_BOUNDARY;
                 responseStream.flush();
 
-//                if (frame.size() > 0)
-//                {
-//                    if (ws.poll(route().settings().getPollTimeout(),
-//                                Poco::Net::Socket::SELECT_WRITE))
-//                    {
-//                        int numBytesSent = 0;
-//
-//                        const char* pData = frame.getCharPtr();
-//
-//                        numBytesSent = ws.sendFrame(pData,
-//                                                    frame.size(),
-//                                                    frame.flags());
-//
-//                        _totalBytesSent += numBytesSent;
-//
-//                        // WebSocketError error = WS_ERR_NONE;
-//
-//                        if (0 == numBytesSent)
-//                        {
-//                            ofLogWarning("WebSocketConnection::handleRequest") << "WebSocket numBytesSent == 0";
-//                            // error = WS_ERROR_ZERO_BYTE_FRAME_SENT;
-//                        }
-//                        // TODO ofBuffer::size() returns long ... sendFrame returns int ... :/
-//                        else if(numBytesSent < frame.size())
-//                        {
-//                            ofLogWarning("WebSocketConnection::handleRequest") << "WebSocket numBytesSent < frame.size()";
-//                            // error = WS_ERROR_INCOMPLETE_FRAME_SENT;
-//                        }
-//
-//                        WebSocketFrameEventArgs eventArgs(evt, *this, frame);
-//
-//                        ofNotifyEvent(route().events.onWebSocketFrameSentEvent,
-//                                      eventArgs,
-//                                      this);
-//                    }
-//                }
+                SSEFrameEventArgs frameEventArgs(evt, *this, frame.frame());
+                ofNotifyEvent(route().events.onSSEFrameSentEvent,
+                              frameEventArgs,
+                              this);
+                // TODO: update _totalBytesSent?
             }
 
-//            // Check for read error
-//            if (ws.poll(route().settings().getPollTimeout(),
-//                        Poco::Net::Socket::SELECT_ERROR))
-//            {
-//                std::unique_lock<std::mutex> lock(_mutex);
-//                _isConnected = false;
-//            }
-
-            responseStream << "data: " << ofGetTimestampString() << SSE_EVENT_BOUNDARY;
-            responseStream.flush();
             std::unique_lock<std::mutex> lock(_mutex);
             _condition.wait_for(lock, std::chrono::milliseconds(1000));
         }
@@ -224,7 +187,7 @@ void SSEConnection::clearSendQueue()
     std::swap(_frameQueue, empty);
 }
 
-                   
+
 Poco::Net::NameValueCollection SSEConnection::requestHeaders() const
 {
     std::unique_lock<std::mutex> lock(_mutex);

@@ -99,6 +99,9 @@ private:
 
     /// \brief Event boundary.
     static const std::string SSE_EVENT_BOUNDARY;
+    /// \brief Event field delimiter
+    static const std::string SSE_LINE_BOUNDARY;
+
 
 };
 

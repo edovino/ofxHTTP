@@ -84,7 +84,7 @@ const Poco::Net::HTMLForm& Request::form() const
 
 void Request::prepareRequest()
 {
-    _form.prepareSubmit(*this);
+//    _form.prepareSubmit(*this);
 
     // Remove a trailing question mark appended by the prepareSubmit method that
     // can occur when dealing with query parameters passed with the URI rather
